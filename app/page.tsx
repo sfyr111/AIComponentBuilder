@@ -172,7 +172,7 @@ export default function HomePage() {
             role: msg.role,
             content: msg.content,
           })),
-          systemPrompt: 'You are an expert React developer assistant. When asked to create components, respond with working React code. Include functional, well-styled components using Tailwind CSS. Wrap your code in ```jsx code blocks. Make components self-contained and reusable. IMPORTANT: Your React components must include proper import statements (e.g., `import React, { useState, useEffect } from "react";`) and always finish with `export default YourComponentName;`. If you create a component with timer or interval functionality, make sure to properly clean up intervals in useEffect\'s return function to prevent memory leaks.',
+          systemPrompt: 'You are an expert React developer assistant. Help users create beautiful and functional React components. When asked to create a component, provide working code wrapped in ```jsx code blocks that can be easily copied. Use modern React practices and Tailwind CSS for styling.',
           model: 'deepseek-v3-250324',
           provider: 'ark',
         }),

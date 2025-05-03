@@ -14,7 +14,7 @@ export interface EsbuildContextType {
 
 const EsbuildContext = createContext<EsbuildContextType | null>(null);
 
-// Simple code transformation cache - using hash value as key
+// Code transformation cache
 const codeCache = new Map<string, { code: string; timestamp: number }>();
 const CACHE_EXPIRY = 1000 * 60 * 5; // 5 minutes cache expiry
 const MAX_CACHE_SIZE = 100; // Limit cache size
@@ -24,19 +24,16 @@ const cleanupExpiredCache = () => {
   const now = Date.now();
   const expiredKeys: string[] = [];
   
-  // Find all expired keys
   for (const [key, value] of codeCache.entries()) {
     if (now - value.timestamp > CACHE_EXPIRY) {
       expiredKeys.push(key);
     }
   }
   
-  // Delete expired keys
   for (const key of expiredKeys) {
     codeCache.delete(key);
   }
   
-  // If cache is still too large, delete oldest entries
   if (codeCache.size > MAX_CACHE_SIZE) {
     const entries = Array.from(codeCache.entries())
       .sort((a, b) => a[1].timestamp - b[1].timestamp);
@@ -60,7 +57,6 @@ export function EsbuildProvider({ children }: { children: ReactNode }) {
   const [esbuildService, setEsbuildService] = useState<typeof esbuild | null>(null);
   const [isInitializing, setIsInitializing] = useState(true);
   const [hasError, setHasError] = useState(false);
-  const [initializationAttempts, setInitializationAttempts] = useState(0);
   const initializingRef = useRef(false);
   const initializedRef = useRef(false);
   const timeoutIdRef = useRef<NodeJS.Timeout | null>(null);
@@ -72,7 +68,6 @@ export function EsbuildProvider({ children }: { children: ReactNode }) {
       timeoutIdRef.current = null;
     }
     
-    // Only stop service when component unmounts
     if (typeof window !== 'undefined' && cacheCleanupInterval) {
       clearInterval(cacheCleanupInterval);
     }
@@ -80,7 +75,6 @@ export function EsbuildProvider({ children }: { children: ReactNode }) {
 
   // Initialize esbuild
   const initializeEsbuild = useCallback(async () => {
-    // Don't initialize if already initializing or completed
     if (initializingRef.current || initializedRef.current) return;
     
     initializingRef.current = true;
@@ -95,16 +89,15 @@ export function EsbuildProvider({ children }: { children: ReactNode }) {
         setHasError(true);
         setIsInitializing(false);
         initializingRef.current = false;
-        initializedRef.current = false; // Ensure can retry after timeout
-      }, 10000); // 10 second timeout
+        initializedRef.current = false;
+      }, 10000);
       
       timeoutIdRef.current = timeout;
 
-      // Use local WASM file
       try {
         await esbuild.initialize({
           wasmURL: '/esbuild.wasm',
-          worker: false // Disable worker mode to avoid cross-origin issues
+          worker: false
         });
         
         setEsbuildService(esbuild);
@@ -112,7 +105,6 @@ export function EsbuildProvider({ children }: { children: ReactNode }) {
         setHasError(false);
         initializedRef.current = true;
         
-        // Clear timeout
         if (timeoutIdRef.current) {
           clearTimeout(timeoutIdRef.current);
           timeoutIdRef.current = null;
@@ -120,15 +112,17 @@ export function EsbuildProvider({ children }: { children: ReactNode }) {
         
         console.log('esbuild initialized successfully');
       } catch (error: unknown) {
-        // Check if it's an "already initialized" error, which we can treat as success
-        if (error && typeof error === 'object' && 'message' in error && typeof error.message === 'string' && error.message.includes('initialize') && error.message.includes('once')) {
+        if (error && typeof error === 'object' && 'message' in error && 
+            typeof error.message === 'string' && 
+            error.message.includes('initialize') && 
+            error.message.includes('once')) {
           console.log('esbuild already initialized, treating as success');
           setEsbuildService(esbuild);
           setIsInitializing(false);
           setHasError(false);
           initializedRef.current = true;
         } else {
-          throw error; // Rethrow other types of errors
+          throw error;
         }
       }
     } catch (error) {
@@ -145,25 +139,19 @@ export function EsbuildProvider({ children }: { children: ReactNode }) {
   const retryInitialization = useCallback(() => {
     if (initializingRef.current) return;
     
-    initializedRef.current = false; // Reset initialization state
-    setInitializationAttempts(prev => prev + 1);
+    initializedRef.current = false;
     initializeEsbuild();
   }, [initializeEsbuild]);
 
-  // Initialize esbuild on initial render - run only once
+  // Initialize esbuild on initial render
   useEffect(() => {
     initializeEsbuild();
-    
-    // Only clean up on unmount, don't stop service on every code change
     return cleanupService;
   }, [initializeEsbuild, cleanupService]);
 
-  // Code transformation function
   const transformCode = useCallback(async (code: string) => {
-    // Calculate hash of code as cache key
     const cacheKey = hashString(code);
     
-    // Try to get from cache
     const cached = codeCache.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < CACHE_EXPIRY) {
       return { code: cached.code };
@@ -178,14 +166,13 @@ export function EsbuildProvider({ children }: { children: ReactNode }) {
 
     try {
       const result = await esbuildService.transform(code, {
-        loader: 'jsx',
+        loader: 'jsx',         
         jsxFactory: 'React.createElement',
         jsxFragment: 'React.Fragment',
-        target: 'es2015',
-        format: 'esm',
+        target: 'es2015',      
+        format: 'iife',         
       });
       
-      // Cache result - using hash as key
       codeCache.set(cacheKey, { 
         code: result.code, 
         timestamp: Date.now() 
@@ -228,4 +215,76 @@ export function useEsbuild() {
     throw new Error("useEsbuild must be used within an EsbuildProvider");
   }
   return context;
+}
+
+// Bundle and transform function
+export async function bundleAndTransform(source: string) {
+  const service = await getEsbuildService();
+  if (!service) throw new Error('esbuild not initialized');
+  
+  try {
+    const result = await service.build({
+      stdin: {
+        contents: source,
+        resolveDir: '/',
+        loader: 'tsx',
+      },
+      bundle: true,
+      platform: 'browser',
+      external: ['react', 'react-dom'],
+      write: false,
+      format: 'iife',
+      globalName: 'Sandbox',
+      banner: {
+        js: [
+          'var __window = typeof window !== "undefined" ? window : this;',
+          'var React = __window.React, ReactDOM = __window.ReactDOM;'
+        ].join('')
+      },
+      define: {
+        'React': 'window.React',
+        'ReactDOM': 'window.ReactDOM',
+      },
+      jsxFactory: 'React.createElement',
+      jsxFragment: 'React.Fragment',
+      target: 'es2015',
+    });
+    
+    // Replace require calls with global variables
+    let out = result.outputFiles[0].text;
+    out = out
+      .replace(/require\(\s*['"]react['"]\s*\)/g, 'window.React')
+      .replace(/require\(\s*['"]react-dom['"]\s*\)/g, 'window.ReactDOM');
+    
+    return out;
+  } catch (error) {
+    console.error('Bundle error:', error);
+    if (error instanceof Error) {
+      throw new Error(`Bundle error: ${error.message}`);
+    }
+    throw new Error('Unknown bundle error');
+  }
+}
+
+// Helper function to get esbuild service instance
+async function getEsbuildService(): Promise<typeof esbuild | null> {
+  try {
+    await esbuild.initialize({
+      wasmURL: '/esbuild.wasm',
+      worker: false
+    });
+    console.log('esbuild initialized on demand');
+  } catch (error) {
+    if (error && typeof error === 'object' && 'message' in error && 
+        typeof error.message === 'string' && 
+        error.message.includes('initialize') && 
+        error.message.includes('once')) {
+      console.log('esbuild already initialized');
+    } else {
+      console.error('Failed to initialize esbuild:', error);
+      return null;
+    }
+  }
+  
+  return esbuild;
 }
