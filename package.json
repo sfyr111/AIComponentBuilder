@@ -23,6 +23,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "crypto-js": "^4.2.0",
+    "dotenv": "^16.5.0",
     "esbuild-wasm": "^0.25.3",
     "lucide-react": "^0.507.0",
     "monaco-editor": "^0.52.2",

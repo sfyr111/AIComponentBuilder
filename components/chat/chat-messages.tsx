@@ -11,6 +11,40 @@ interface ChatMessagesProps {
   isLoading?: boolean;
 }
 
+// A simple function to convert code blocks to HTML
+function formatMessageContent(content: string): React.ReactNode {
+  // Split content to find code blocks
+  const parts = content.split(/(```[\s\S]*?```)/g);
+  
+  return (
+    <>
+      {parts.map((part, i) => {
+        // Check if it's a code block
+        if (part.startsWith('```') && part.endsWith('```')) {
+          // Extract code and language (if any)
+          const match = part.match(/```(?:([a-zA-Z0-9]+))?\n([\s\S]*?)```/);
+          
+          if (match) {
+            const [, , code] = match;
+            return (
+              <pre key={i} className="bg-gray-800 text-gray-200 p-3 rounded-md my-2 overflow-x-auto">
+                <code>{code}</code>
+              </pre>
+            );
+          }
+        }
+        
+        // Handle regular text (convert newlines to <br>)
+        return (
+          <span key={i} className="whitespace-pre-wrap">
+            {part}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   
@@ -39,7 +73,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                 : "bg-muted"
             )}
           >
-            {message.content}
+            {formatMessageContent(message.content)}
           </div>
         </div>
       ))}
