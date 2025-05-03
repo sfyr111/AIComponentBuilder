@@ -1,5 +1,10 @@
 import React from "react";
 import { cn } from "@/lib/utils";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize from "rehype-sanitize";
+import "github-markdown-css";
 
 export interface Message {
   role: "user" | "assistant";
@@ -11,37 +16,21 @@ interface ChatMessagesProps {
   isLoading?: boolean;
 }
 
-// A simple function to convert code blocks to HTML
-function formatMessageContent(content: string): React.ReactNode {
-  // Split content to find code blocks
-  const parts = content.split(/(```[\s\S]*?```)/g);
-  
+// Component for rendering markdown content
+function MarkdownRenderer({ content }: { content: string }) {
   return (
-    <>
-      {parts.map((part, i) => {
-        // Check if it's a code block
-        if (part.startsWith('```') && part.endsWith('```')) {
-          // Extract code and language (if any)
-          const match = part.match(/```(?:([a-zA-Z0-9]+))?\n([\s\S]*?)```/);
-          
-          if (match) {
-            const [, , code] = match;
-            return (
-              <pre key={i} className="bg-gray-800 text-gray-200 p-3 rounded-md my-2 overflow-x-auto">
-                <code>{code}</code>
-              </pre>
-            );
-          }
-        }
-        
-        // Handle regular text (convert newlines to <br>)
-        return (
-          <span key={i} className="whitespace-pre-wrap">
-            {part}
-          </span>
-        );
-      })}
-    </>
+    <div className="markdown-body" style={{ 
+      backgroundColor: 'transparent',
+      color: 'inherit',
+      fontFamily: 'inherit'
+    }}>
+      <ReactMarkdown 
+        remarkPlugins={[remarkGfm]}
+        rehypePlugins={[rehypeRaw, rehypeSanitize]}
+      >
+        {content}
+      </ReactMarkdown>
+    </div>
   );
 }
 
@@ -73,7 +62,11 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                 : "bg-muted"
             )}
           >
-            {formatMessageContent(message.content)}
+            {message.role === "assistant" ? (
+              <MarkdownRenderer content={message.content} />
+            ) : (
+              <span className="whitespace-pre-wrap">{message.content}</span>
+            )}
           </div>
         </div>
       ))}

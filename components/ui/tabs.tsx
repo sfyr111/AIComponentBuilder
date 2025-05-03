@@ -4,6 +4,7 @@ import * as React from "react"
 import * as TabsPrimitive from "@radix-ui/react-tabs"
 
 import { cn } from "@/lib/utils"
+import { useIsClient } from "@/hooks/use-client"
 
 function Tabs({
   className,
@@ -22,6 +23,22 @@ function TabsList({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.List>) {
+  const isClient = useIsClient()
+  
+  // Early return a placeholder with similar dimensions during server rendering
+  if (!isClient) {
+    return (
+      <div 
+        className={cn(
+          "bg-muted text-muted-foreground inline-flex h-9 w-fit items-center justify-center rounded-lg p-[3px]",
+          className
+        )}
+      >
+        {props.children}
+      </div>
+    )
+  }
+  
   return (
     <TabsPrimitive.List
       data-slot="tabs-list"
@@ -38,6 +55,22 @@ function TabsTrigger({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Trigger>) {
+  const isClient = useIsClient()
+  
+  // Early return a placeholder with similar dimensions during server rendering
+  if (!isClient) {
+    return (
+      <div
+        className={cn(
+          "text-foreground dark:text-muted-foreground inline-flex h-[calc(100%-1px)] flex-1 items-center justify-center gap-1.5 rounded-md border border-transparent px-2 py-1 text-sm font-medium whitespace-nowrap",
+          className
+        )}
+      >
+        {props.children}
+      </div>
+    )
+  }
+  
   return (
     <TabsPrimitive.Trigger
       data-slot="tabs-trigger"
@@ -54,6 +87,19 @@ function TabsContent({
   className,
   ...props
 }: React.ComponentProps<typeof TabsPrimitive.Content>) {
+  const isClient = useIsClient()
+  
+  // Early return a placeholder during server rendering
+  if (!isClient) {
+    return (
+      <div
+        className={cn("flex-1 outline-none", className)}
+      >
+        {props.children}
+      </div>
+    )
+  }
+  
   return (
     <TabsPrimitive.Content
       data-slot="tabs-content"

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ChevronLeft, ChevronRight, Code, Eye } from "lucide-react";
 import { CodeEditor } from "@/components/canvas/code-editor";
 import { CodePreview } from "@/components/canvas/code-preview";
+import { useIsClient } from "@/hooks/use-client";
 
 interface CanvasSidebarProps {
   code: string;
@@ -17,6 +18,7 @@ export function CanvasSidebar({ code, onChange }: CanvasSidebarProps) {
   const [open, setOpen] = useState(true);
   const [activeTab, setActiveTab] = useState("code");
   const prevActiveTabRef = useRef(activeTab);
+  const isClient = useIsClient();
   
   // Listen for tab changes, clean up resources when switching from Preview to Code
   useEffect(() => {
@@ -39,7 +41,7 @@ export function CanvasSidebar({ code, onChange }: CanvasSidebarProps) {
         <CollapsibleTrigger asChild>
           <div className="flex items-center h-full border-r">
             <Button variant="ghost" size="icon" className="h-full rounded-none w-10">
-              {open ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
+              {isClient ? (open ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />) : null}
             </Button>
           </div>
         </CollapsibleTrigger>
@@ -59,11 +61,11 @@ export function CanvasSidebar({ code, onChange }: CanvasSidebarProps) {
             <div className="p-3 border-b flex items-center">
               <TabsList>
                 <TabsTrigger value="code">
-                  <Code className="h-4 w-4 mr-2" />
+                  {isClient ? <Code className="h-4 w-4 mr-2" /> : <span className="w-4 h-4 mr-2"></span>}
                   Code
                 </TabsTrigger>
                 <TabsTrigger value="preview">
-                  <Eye className="h-4 w-4 mr-2" />
+                  {isClient ? <Eye className="h-4 w-4 mr-2" /> : <span className="w-4 h-4 mr-2"></span>}
                   Preview
                 </TabsTrigger>
               </TabsList>
