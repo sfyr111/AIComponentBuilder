@@ -1,11 +1,10 @@
 "use client";
 
 import React from "react";
-import { ReactRenderer } from "./react-renderer";
+import { SandboxIframe } from "./sandbox-iframe";
 import { ErrorBoundary } from "react-error-boundary";
-import { Alert, AlertTitle } from "../ui/alert";
-import { Button } from "../ui/button";
-import { RefreshCw } from "lucide-react";
+import { AlertTriangle, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 interface CodePreviewProps {
   jsxCode: string;
@@ -16,20 +15,22 @@ function ErrorFallback({ error, resetErrorBoundary }: {
   resetErrorBoundary: () => void;
 }) {
   return (
-    <div className="h-full flex items-center justify-center">
-      <div className="w-full max-w-md p-4 text-center">
-        <Alert variant="destructive" className="mb-4">
-          <AlertTitle>Render Error</AlertTitle>
-          <div className="text-sm mt-2 overflow-auto max-h-[200px]">
-            {error.message}
-          </div>
-        </Alert>
+    <div className="h-full flex items-center justify-center p-4">
+      <div className="w-full max-w-md bg-destructive/10 border border-destructive/30 rounded-md p-4">
+        <div className="flex items-center gap-2 mb-2 text-destructive">
+          <AlertTriangle className="h-5 w-5" />
+          <h3 className="font-medium">Rendering Error</h3>
+        </div>
+        <div className="text-sm mb-4 overflow-auto max-h-[200px] text-destructive/90 bg-background/80 p-2 rounded-sm">
+          {error.message}
+        </div>
         <Button 
           variant="outline" 
           onClick={resetErrorBoundary}
           className="flex items-center gap-2"
+          size="sm"
         >
-          <RefreshCw className="h-4 w-4" />
+          <RefreshCw className="h-3 w-3" />
           Retry
         </Button>
       </div>
@@ -38,9 +39,22 @@ function ErrorFallback({ error, resetErrorBoundary }: {
 }
 
 export function CodePreview({ jsxCode }: CodePreviewProps) {
+  const handleError = (err: Error) => {
+    console.error("Preview error:", err);
+  };
+
   return (
-    <ErrorBoundary FallbackComponent={ErrorFallback}>
-      <ReactRenderer jsxCode={jsxCode} />
+    <ErrorBoundary
+      FallbackComponent={ErrorFallback}
+      resetKeys={[jsxCode]}
+    >
+      <div className="w-full h-full rounded-md overflow-hidden">
+        <SandboxIframe 
+          jsxCode={jsxCode} 
+          className="w-full h-full"
+          onError={handleError}
+        />
+      </div>
     </ErrorBoundary>
   );
 }
