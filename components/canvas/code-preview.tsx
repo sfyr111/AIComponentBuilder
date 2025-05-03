@@ -1,21 +1,46 @@
 "use client";
 
 import React from "react";
-import { Code2 } from "lucide-react";
+import { ReactRenderer } from "./react-renderer";
+import { ErrorBoundary } from "react-error-boundary";
+import { Alert, AlertTitle } from "../ui/alert";
+import { Button } from "../ui/button";
+import { RefreshCw } from "lucide-react";
 
 interface CodePreviewProps {
   jsxCode: string;
 }
 
-export function CodePreview({ jsxCode }: CodePreviewProps) {
-  // This is just a placeholder - you'll implement the actual code rendering later
+function ErrorFallback({ error, resetErrorBoundary }: { 
+  error: Error; 
+  resetErrorBoundary: () => void;
+}) {
   return (
-    <div className="flex flex-col items-center justify-center bg-background rounded-md border h-full">
-      <Code2 className="h-10 w-10 text-muted-foreground opacity-50 mb-2" />
-      <p className="text-sm text-muted-foreground text-center">
-        Preview will be implemented in the next phase.<br />
-        This will render React components from the code editor.
-      </p>
+    <div className="h-full flex items-center justify-center">
+      <div className="w-full max-w-md p-4 text-center">
+        <Alert variant="destructive" className="mb-4">
+          <AlertTitle>Render Error</AlertTitle>
+          <div className="text-sm mt-2 overflow-auto max-h-[200px]">
+            {error.message}
+          </div>
+        </Alert>
+        <Button 
+          variant="outline" 
+          onClick={resetErrorBoundary}
+          className="flex items-center gap-2"
+        >
+          <RefreshCw className="h-4 w-4" />
+          Retry
+        </Button>
+      </div>
     </div>
+  );
+}
+
+export function CodePreview({ jsxCode }: CodePreviewProps) {
+  return (
+    <ErrorBoundary FallbackComponent={ErrorFallback}>
+      <ReactRenderer jsxCode={jsxCode} />
+    </ErrorBoundary>
   );
 }
