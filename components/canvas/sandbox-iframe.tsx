@@ -178,14 +178,13 @@ export function SandboxIframe({ jsxCode, className, onError }: SandboxIframeProp
           throw new Error('Cannot find valid React component');
         }
         
+        // Use empty props
+        const componentProps = {};
+        
         // Render component
         console.log('Mounting component');
         const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(Component, {
-          initialHours: 0,
-          initialMinutes: 0,
-          initialSeconds: 10
-        }));
+        root.render(React.createElement(Component, componentProps));
         
         console.log('Component mounted successfully');
       } catch (error) {

@@ -6,127 +6,10 @@ import { ChatMessages, Message } from "@/components/chat/chat-messages";
 import { ChatInput } from "@/components/chat/chat-input";
 import { CanvasSidebar } from "@/components/canvas/canvas-sidebar";
 
-// Default code sample for the editor
-const DEFAULT_CODE = `
-import React, { useState, useEffect } from 'react';
-
-const CountdownTimer = ({ initialHours = 0, initialMinutes = 0, initialSeconds = 0 }) => {
-  const [timeLeft, setTimeLeft] = useState({
-    hours: initialHours,
-    minutes: initialMinutes,
-    seconds: initialSeconds
-  });
-
-  const [isActive, setIsActive] = useState(false);
-
-  useEffect(() => {
-    let interval = null;
-
-    if (isActive) {
-      interval = setInterval(() => {
-        setTimeLeft(prevTime => {
-          const { hours, minutes, seconds } = prevTime;
-          
-          if (hours === 0 && minutes === 0 && seconds === 0) {
-            clearInterval(interval);
-            setIsActive(false);
-            return prevTime;
-          }
-
-          if (seconds > 0) {
-            return { ...prevTime, seconds: seconds - 1 };
-          } else if (minutes > 0) {
-            return { hours, minutes: minutes - 1, seconds: 59 };
-          } else {
-            return { hours: hours - 1, minutes: 59, seconds: 59 };
-          }
-        });
-      }, 1000);
-    }
-
-    return () => clearInterval(interval);
-  }, [isActive]);
-
-  const startTimer = () => {
-    setIsActive(true);
-  };
-
-  const pauseTimer = () => {
-    setIsActive(false);
-  };
-
-  const resetTimer = () => {
-    setIsActive(false);
-    setTimeLeft({
-      hours: initialHours,
-      minutes: initialMinutes,
-      seconds: initialSeconds
-    });
-  };
-
-  const formatTime = (time) => {
-    return time < 10 ? \`0\${time}\` : time;
-  };
-
-  return (
-    <div className="flex flex-col items-center justify-center p-6 bg-gray-100 rounded-lg shadow-md">
-      <div className="flex space-x-4 mb-6">
-        <div className="flex flex-col items-center">
-          <span className="text-5xl font-bold text-gray-800">
-            {formatTime(timeLeft.hours)}
-          </span>
-          <span className="text-sm text-gray-500">Hours</span>
-        </div>
-        <span className="text-5xl font-bold text-gray-800">:</span>
-        <div className="flex flex-col items-center">
-          <span className="text-5xl font-bold text-gray-800">
-            {formatTime(timeLeft.minutes)}
-          </span>
-          <span className="text-sm text-gray-500">Minutes</span>
-        </div>
-        <span className="text-5xl font-bold text-gray-800">:</span>
-        <div className="flex flex-col items-center">
-          <span className="text-5xl font-bold text-gray-800">
-            {formatTime(timeLeft.seconds)}
-          </span>
-          <span className="text-sm text-gray-500">Seconds</span>
-        </div>
-      </div>
-
-      <div className="flex space-x-4">
-        {!isActive ? (
-          <button
-            onClick={startTimer}
-            className="px-6 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors"
-          >
-            Start
-          </button>
-        ) : (
-          <button
-            onClick={pauseTimer}
-            className="px-6 py-2 bg-yellow-500 text-white rounded-md hover:bg-yellow-600 transition-colors"
-          >
-            Pause
-          </button>
-        )}
-        <button
-          onClick={resetTimer}
-          className="px-6 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors"
-        >
-          Reset
-        </button>
-      </div>
-    </div>
-  );
-};
-
-export default CountdownTimer;
-`;
-
 export default function HomePage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [code, setCode] = useState(DEFAULT_CODE);
+  const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   // Extract code from AI response
@@ -256,7 +139,10 @@ export default function HomePage() {
             isLoading={isLoading}
           />
         </div>
-        <CanvasSidebar code={code} onChange={setCode} />
+        <CanvasSidebar 
+          code={code} 
+          onChange={setCode} 
+        />
       </div>
     </div>
   );

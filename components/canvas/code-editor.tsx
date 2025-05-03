@@ -8,28 +8,45 @@ interface CodeEditorProps {
 }
 
 export function CodeEditor({ code, onChange }: CodeEditorProps) {
-  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null)
-  const [isEditorReady, setIsEditorReady] = useState(false)
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const [isEditorReady, setIsEditorReady] = useState(false);
   
   const handleEditorDidMount: OnMount = (editor) => {
-    editorRef.current = editor
-    setIsEditorReady(true)
-  }
+    editorRef.current = editor;
+    setIsEditorReady(true);
+  };
   
+  // use pushEditOperations to update content, keep edit history
   useEffect(() => {
-    if (isEditorReady && editorRef.current && code !== editorRef.current.getValue()) {
-      editorRef.current.setValue(code)
+    if (isEditorReady && editorRef.current) {
+      const model = editorRef.current.getModel();
+      if (model && model.getValue() !== code) {
+        model.pushEditOperations(
+          [],
+          [{ range: model.getFullModelRange(), text: code }],
+          () => null
+        );
+      }
     }
-  }, [code, isEditorReady])
+  }, [code, isEditorReady]);
   
   const handleBeforeMount: BeforeMount = (monaco: Monaco) => {
-    monaco.languages.typescript.javascriptDefaults.setCompilerOptions({
+    monaco.languages.typescript.typescriptDefaults.setCompilerOptions({
+      target: monaco.languages.typescript.ScriptTarget.ESNext,
+      allowNonTsExtensions: true,
+      moduleResolution: monaco.languages.typescript.ModuleResolutionKind.NodeJs,
+      module: monaco.languages.typescript.ModuleKind.ESNext,
       jsx: monaco.languages.typescript.JsxEmit.React,
       jsxFactory: 'React.createElement',
       reactNamespace: 'React',
-      allowNonTsExtensions: true,
       allowJs: true,
-      target: monaco.languages.typescript.ScriptTarget.Latest,
+      esModuleInterop: true,
+      allowSyntheticDefaultImports: true,
+    });
+
+    monaco.languages.typescript.typescriptDefaults.setDiagnosticsOptions({
+      noSemanticValidation: true,
+      noSyntaxValidation: true,
     });
   };
   
@@ -38,7 +55,8 @@ export function CodeEditor({ code, onChange }: CodeEditorProps) {
       <Editor
         height="100%"
         width="100%"
-        language="javascript"
+        path="component.tsx"
+        language="typescript"
         value={code}
         onChange={(value) => value !== undefined && onChange(value)}
         onMount={handleEditorDidMount}
@@ -54,6 +72,7 @@ export function CodeEditor({ code, onChange }: CodeEditorProps) {
           folding: true,
           lineNumbers: "on",
           renderLineHighlight: "all",
+          colorDecorators: true
         }}
       />
     </div>
