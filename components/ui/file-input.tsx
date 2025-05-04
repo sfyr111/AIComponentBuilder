@@ -8,7 +8,6 @@ export interface FileInputProps
   value?: File | null;
   onChange?: (file: File | null) => void;
   onPreview?: (url: string) => void;
-  previewUrl?: string;
   buttonText?: string;
 }
 
@@ -19,7 +18,6 @@ const FileInput = forwardRef<HTMLInputElement, FileInputProps>(
       value,
       onChange,
       onPreview,
-      previewUrl,
       buttonText = "Select File",
       disabled,
       ...props
