@@ -34,7 +34,7 @@ export function CanvasSidebar({
   if (!isClient || !isOpen) return null;
 
   return (
-    <div className="w-1/2 md:w-3/5 xl:w-2/3 2xl:w-3/4 border-l h-full flex flex-col">
+    <div className="w-1/2 md:w-3/5 xl:w-3/5 2xl:w-3/5 border-l h-full flex flex-col">
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}

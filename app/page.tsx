@@ -1,20 +1,43 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { ChatHeader } from "@/components/chat/chat-header";
 import { ChatMessages, Message } from "@/components/chat/chat-messages";
 import { ChatInput } from "@/components/chat/chat-input";
 import { CanvasSidebar } from "@/components/canvas/canvas-sidebar";
+import { uploadImage } from "@/lib/image-upload";
 
 // Default example code with function call examples
-const DEFAULT_TIME_COMPONENT = ``;
+const DEFAULT_COMPONENT = ``;
+
+const IMAGE_PROMPT = `
+You are an expert React developer who creates beautiful, responsive UI components.
+
+I'm showing you a UI design image. Please:
+
+1. Describe what you see in this image, focusing on UI elements, layout, and design.
+
+2. Provide a detailed analysis for implementing this as a React component:
+   - Component hierarchy and structure needed
+   - State management requirements
+   - Props that would be needed
+   - CSS approach recommendation (Tailwind, styled-components, etc.)
+   - Interactive elements and event handlers
+   - Responsiveness considerations
+   - Accessibility recommendations
+
+3. Highlight any potential implementation challenges.
+
+Your detailed analysis will be used for React code generation, so be specific and thorough in your descriptions.
+`;
 
 export default function HomePage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [code, setCode] = useState(DEFAULT_TIME_COMPONENT);
+  const [code, setCode] = useState(DEFAULT_COMPONENT);
   const [isLoading, setIsLoading] = useState(false);
-  const [isCanvasOpen, setIsCanvasOpen] = useState(!!DEFAULT_TIME_COMPONENT.trim());
+  const [isCanvasOpen, setIsCanvasOpen] = useState(!!DEFAULT_COMPONENT.trim());
+  const [selectedImage, setSelectedImage] = useState<string | null>(null);
 
   const extractCodeFromResponse = useCallback((text: string): string | null => {
     const match = text.match(/```(?:jsx|tsx|javascript|js|react)?(?:\[COMPONENT.*?\])\n([\s\S]+?)```/);
@@ -35,31 +58,126 @@ export default function HomePage() {
     setInput(e.target.value);
   }, []);
 
+  const handleImageChange = useCallback((imageUrl: string | null) => {
+    console.log("Image URL:", imageUrl);
+    setSelectedImage(imageUrl);
+  }, []);
+  
+  useEffect(() => {
+    const handlePaste = async (e: ClipboardEvent) => {
+      if (isLoading) return;
+      
+      let imageFile: File | null = null;
+
+      if (e.clipboardData && e.clipboardData.files.length > 0) {
+        const file = e.clipboardData.files[0];
+        if (file.type.startsWith('image/')) {
+          imageFile = file;
+        }
+      } else if (e.clipboardData && e.clipboardData.items) {
+        const items = e.clipboardData.items;
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf('image') !== -1) {
+            const file = items[i].getAsFile();
+            if (file) {
+              imageFile = file;
+              break;
+            }
+          }
+        }
+      }
+
+      if (imageFile) {
+        const localImageUrl = URL.createObjectURL(imageFile);
+        setSelectedImage(localImageUrl);
+        
+        const uploadedUrl = await uploadImage(imageFile);
+        if (uploadedUrl) {
+          setSelectedImage(uploadedUrl);
+        } else {
+          console.error("Paste upload failed");
+        }
+      }
+    };
+
+    document.addEventListener('paste', handlePaste);
+    return () => {
+      document.removeEventListener('paste', handlePaste);
+    };
+  }, [isLoading]);
+
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!input.trim() || isLoading) return;
+    if ((!input.trim() && !selectedImage) || isLoading) return;
 
-    const userMessage: Message = { role: "user", content: input };
+    const userMessage: Message = { 
+      role: "user", 
+      content: input,
+      ...(selectedImage ? { imageUrl: selectedImage } : {})
+    };
+    
     setMessages(prev => [...prev, userMessage]);
     setInput("");
+    setSelectedImage(null);
     setIsLoading(true);
 
+    let analysisContent = '';
+    
+    // Step 1: If an image is present, call image analysis API first
+    if (selectedImage) {
+      try {
+        const analysisResponse = await fetch("/api/image-analyze", {
+          method: "POST",
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            imageUrl: selectedImage,
+            prompt: IMAGE_PROMPT
+          }),
+        });
+        
+        if (!analysisResponse.ok) {
+          throw new Error(`Image analysis failed: ${analysisResponse.status}`);
+        }
+        
+        const analysisData = await analysisResponse.json();
+        analysisContent = analysisData.description || '';
+      } catch (error) {
+        console.error("Image analysis error:", error);
+        setMessages(prev => [
+          ...prev,
+          { role: "assistant", content: "Sorry, image analysis failed. Please try again." },
+        ]);
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    // Step 2: Generate code based on text input + analysis
     let receivedNewCode = false;
-    let accumulated = '';
+    let accumulatedResponse = '';
     let assistantMessage: Message = { role: 'assistant', content: '' };
     
-    // Add placeholder for assistant message
     setMessages(prev => [...prev, assistantMessage]);
 
     try {
+      let systemPrompt = 'You are an expert React developer assistant. Help users create beautiful and functional React components using Tailwind CSS.';
+      
+      if (analysisContent) {
+        systemPrompt += '\n\nBased on the following component analysis, implement a React component that matches the description:\n\n' + analysisContent;
+      }
+      
+      systemPrompt += '\n\nWhen creating a component, provide working code wrapped in ```jsx[COMPONENT]...``` blocks.';
+
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map(({ role, content }) => ({ role, content })),
-          systemPrompt: 'You are an expert React developer assistant. Help users create beautiful and functional React components. When asked to create a component, provide working code wrapped in ```jsx[COMPONENT]...``` blocks using Tailwind CSS.',
+          messages: [{ role: 'user', content: input || 'Generate the component based on the analysis.' }],
+          systemPrompt: systemPrompt,
           model: 'deepseek-v3-250324',
           provider: 'ark',
         }),
@@ -69,7 +187,6 @@ export default function HomePage() {
         throw new Error("No response body");
       }
       
-      // Process streaming response
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       
@@ -81,7 +198,6 @@ export default function HomePage() {
         if (value) {
           const decodedChunk = decoder.decode(value, { stream: true });
           
-          // Process SSE format
           const lines = decodedChunk.split('\n\n');
           for (const line of lines) {
             if (line.startsWith('data: ')) {
@@ -92,21 +208,18 @@ export default function HomePage() {
                 const parsed = JSON.parse(data);
                 const text = parsed.text || '';
                 
-                // Update accumulated response
-                accumulated += text;
+                accumulatedResponse += text;
                 
-                // Update the assistant message with accumulated response
-                assistantMessage = { ...assistantMessage, content: accumulated };
+                assistantMessage = { ...assistantMessage, content: accumulatedResponse };
                 setMessages(prev => [...prev.slice(0, -1), assistantMessage]);
                 
-                // Check if we've received code and update the editor
-                const extractedCode = extractCodeFromResponse(accumulated);
+                const extractedCode = extractCodeFromResponse(accumulatedResponse);
                 if (extractedCode) {
                   receivedNewCode = true;
                   setCode(extractedCode);
                   setIsCanvasOpen(true);
                   
-                  const metadata = extractComponentMetadata(accumulated);
+                  const metadata = extractComponentMetadata(accumulatedResponse);
                   if (metadata) {
                     console.log("Component metadata:", metadata);
                   }
@@ -117,6 +230,11 @@ export default function HomePage() {
             }
           }
         }
+      }
+
+      if (analysisContent) {
+        assistantMessage = { ...assistantMessage, analysisDetails: analysisContent };
+        setMessages(prev => [...prev.slice(0, -1), assistantMessage]);
       }
 
       if (!receivedNewCode) {
@@ -131,14 +249,24 @@ export default function HomePage() {
       ]);
     } finally {
       setIsLoading(false);
+      setSelectedImage(null);
     }
-  }, [input, messages, isLoading, extractCodeFromResponse, extractComponentMetadata]);
+  }, [input, messages, isLoading, selectedImage, extractCodeFromResponse, extractComponentMetadata]);
 
   const handleCodeChange = useCallback((val: string) => setCode(val), []);
 
   const handleCanvasOpenChange = useCallback((isOpen: boolean) => {
     setIsCanvasOpen(isOpen);
   }, []);
+
+  const handleClearChat = useCallback(() => {
+    setMessages([]);
+    setSelectedImage(null);
+    setCode(DEFAULT_COMPONENT);
+    setInput("");
+    setIsCanvasOpen(false);
+    // No need to manually clear uploadStatus here, handled in ChatInput effect
+  }, [DEFAULT_COMPONENT]);
 
   const memoizedCanvas = useMemo(() => (
     <CanvasSidebar 
@@ -159,13 +287,16 @@ export default function HomePage() {
         />
       </div>
       <div className="flex flex-1 overflow-hidden">
-        <div className={`flex-1 min-w-[25%] flex flex-col overflow-hidden ${isCanvasOpen ? 'max-w-[50%] md:max-w-[40%] xl:max-w-[33.333%] 2xl:max-w-[25%]' : ''}`}>
+        <div className={`flex-1 min-w-[25%] flex flex-col overflow-hidden ${isCanvasOpen ? 'max-w-[50%] md:max-w-[50%] xl:max-w-[50%] 2xl:max-w-[50%]' : ''}`}>
           <ChatMessages messages={messages} isLoading={isLoading} />
           <ChatInput 
             input={input} 
             handleInputChange={handleInputChange} 
             handleSubmit={handleSubmit}
             isLoading={isLoading}
+            selectedImage={selectedImage}
+            onImageChange={handleImageChange}
+            onClearChat={handleClearChat}
           />
         </div>
         {memoizedCanvas}

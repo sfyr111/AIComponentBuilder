@@ -1,14 +1,19 @@
-import React from "react";
+import React, { useState } from "react";
 import { cn } from "@/lib/utils";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize from "rehype-sanitize";
 import "github-markdown-css";
+import Image from "next/image";
+import { Button } from "@/components/ui/button";
+import { Eye, EyeOff } from "lucide-react";
 
 export interface Message {
   role: "user" | "assistant";
   content: string;
+  imageUrl?: string;
+  analysisDetails?: string;
 }
 
 interface ChatMessagesProps {
@@ -16,14 +21,50 @@ interface ChatMessagesProps {
   isLoading?: boolean;
 }
 
-// Component for rendering markdown content
-function MarkdownRenderer({ content }: { content: string }) {
+function AnalysisDetails({ details }: { details: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+
   return (
-    <div className="markdown-body" style={{ 
-      backgroundColor: 'transparent',
-      color: 'inherit',
-      fontFamily: 'inherit'
-    }}>
+    <div className="mb-2 border-b pb-2">
+      <Button 
+        variant="outline"
+        size="sm"
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex items-center gap-1 text-xs h-7 mb-2"
+      >
+        {isOpen ? <EyeOff className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+        {isOpen ? "Hide Analysis" : "Show Analysis"}
+      </Button>
+      {isOpen && (
+        <div 
+          className="p-2 rounded bg-secondary/80 dark:bg-secondary/40"
+        >
+          <MarkdownRenderer 
+            content={details} 
+            style={{
+              fontSize: '12px',
+              background: 'var(--bgColor-default)',
+              padding: '4px',
+            }}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MarkdownRenderer({ content, style }: { content: string, style?: React.CSSProperties }) {
+  const baseStyle: React.CSSProperties = {
+    backgroundColor: 'transparent',
+    color: 'inherit',
+    fontFamily: 'inherit',
+    fontSize: '14px',
+  };
+  
+  const mergedStyle = { ...baseStyle, ...style };
+
+  return (
+    <div className="markdown-body" style={mergedStyle}>
       <ReactMarkdown 
         remarkPlugins={[remarkGfm]}
         rehypePlugins={[rehypeRaw, rehypeSanitize]}
@@ -37,7 +78,6 @@ function MarkdownRenderer({ content }: { content: string }) {
 export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
   const messagesEndRef = React.useRef<HTMLDivElement>(null);
   
-  // Auto-scroll to bottom when messages change
   React.useEffect(() => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: "smooth" });
@@ -50,7 +90,7 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
         <div
           key={index}
           className={cn(
-            "mb-4 flex",
+            "mb-4 flex text-sm",
             message.role === "user" ? "justify-end" : "justify-start"
           )}
         >
@@ -62,6 +102,22 @@ export function ChatMessages({ messages, isLoading }: ChatMessagesProps) {
                 : "bg-muted"
             )}
           >
+            {message.imageUrl && (
+              <div className="relative aspect-video w-full max-w-xs overflow-hidden rounded-md mb-2">
+                <Image 
+                  src={message.imageUrl} 
+                  alt="Uploaded image" 
+                  layout="fill"
+                  objectFit="contain"
+                  className="bg-muted"
+                />
+              </div>
+            )}
+            
+            {message.role === "assistant" && message.analysisDetails && (
+              <AnalysisDetails details={message.analysisDetails} />
+            )}
+
             {message.role === "assistant" ? (
               <MarkdownRenderer content={message.content} />
             ) : (
