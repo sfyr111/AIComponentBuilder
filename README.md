@@ -2,6 +2,18 @@
 
 This project is a Next.js web application that uses AI technology to help developers quickly generate React component code through natural language descriptions or image designs.
 
+## 🔗 Live Preview
+
+Check out the live application: [AI Component Builder](https://ai-component-builder-xi.vercel.app/)
+
+## 📸 Project Screenshots
+
+![AI Component Generator Interface](images/image1.png)
+*Generated component preview*
+
+![Component Preview](images/image2.png)
+*Main interface for AI component generation*
+
 ## Key Features
 
 - **Natural Language to Component Generation**: Describe the UI component you want, and AI will generate the corresponding React code
