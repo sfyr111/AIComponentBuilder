@@ -1,8 +1,52 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# AI-Powered UI Component Generator
 
-## Getting Started
+This project is a Next.js web application that uses AI technology to help developers quickly generate React component code through natural language descriptions or image designs.
 
-First, run the development server:
+## Key Features
+
+- **Natural Language to Component Generation**: Describe the UI component you want, and AI will generate the corresponding React code
+- **Image to Code Conversion**: Upload UI design images for automatic analysis and conversion into usable React components
+- **Real-time Code Preview**: Instantly view generated code and make adjustments
+- **Copy-Paste Image Support**: Directly copy and paste images into the application for analysis and conversion
+- **Multi-model Support**: Utilize various advanced AI models to optimize code generation results
+
+## Technology Stack
+
+- **Frontend Framework**: Next.js 15.3.1, React 19
+- **Styling**: Tailwind CSS
+- **Code Editor**: Monaco Editor
+- **AI Integration**: OpenAI API, Deepseek API
+- **UI Components**: Radix UI
+- **State Management**: React Hooks
+- **Build Tool**: Turbopack
+
+## Quick Start
+
+### Environment Setup
+
+1. Ensure Node.js 18.0.0 or higher is installed
+2. Clone the project to your local machine
+
+### Environment Variable Configuration
+
+Create a `.env.local` file in the project root directory (you can copy from `.env.local.example`), and set the following variables:
+
+```
+ARK_API_KEY=your_ark_api_key
+BLOB_READ_WRITE_TOKEN=your_blob_token
+```
+
+### Install Dependencies
+
+```bash
+npm install
+# or
+yarn
+# or
+pnpm install
+```
+
+### Start Development Server
 
 ```bash
 npm run dev
@@ -10,27 +54,37 @@ npm run dev
 yarn dev
 # or
 pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Visit [http://localhost:3000](http://localhost:3000) to view the application.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## How to Use
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+1. Describe the UI component you want in the input field on the main page
+2. Or paste/upload a UI design image
+3. After submission, AI will analyze your requirements and generate React component code
+4. View and adjust the generated code in the right panel
+5. Copy the code directly into your project for use
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+/app                 - Next.js application pages and routes
+  /api               - API routes
+    /chat            - Chat and code generation API
+    /image-analyze   - Image analysis API
+/components          - React components
+  /chat              - Chat interface components
+  /canvas            - Code preview and editing components
+  /ui                - Common UI components
+/lib                 - Utility functions and services
+/public              - Static assets
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Contribution Guidelines
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Pull Requests and Issues are welcome to help improve this project.
 
-## Deploy on Vercel
+## License
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+[MIT](LICENSE)
