@@ -1,79 +1,73 @@
 "use client";
 
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import { ChatHeader } from "@/components/chat/chat-header";
 import { ChatMessages, Message } from "@/components/chat/chat-messages";
 import { ChatInput } from "@/components/chat/chat-input";
 import { CanvasSidebar } from "@/components/canvas/canvas-sidebar";
 
 export default function HomePage() {
-  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
   const [code, setCode] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
-  // Extract code from AI response
-  const extractCodeFromResponse = (text: string): string | null => {
-    // Look for code blocks with ```jsx or ```javascript
-    const codeBlockRegex = /```(?:jsx|javascript|react|js|tsx|ts)?\n([\s\S]*?)```/;
-    const match = text.match(codeBlockRegex);
-    
-    if (match && match[1]) {
-      return match[1].trim();
+  const extractCodeFromResponse = useCallback((text: string): string | null => {
+    const match = text.match(/```(?:jsx|tsx|javascript|js|react)?(?:\[COMPONENT.*?\])\n([\s\S]+?)```/);
+    return match?.[1]?.trim() || null;
+  }, []);
+
+  const extractComponentMetadata = useCallback((text: string): Record<string, unknown> | null => {
+    try {
+      const match = text.match(/```(?:jsx|tsx|js)?(?:\[COMPONENT:(\{.*?\})\])/);
+      return match ? JSON.parse(match[1]) : null;
+    } catch (err) {
+      console.error("Failed to parse metadata:", err);
+      return null;
     }
-    
-    return null;
-  };
+  }, []);
 
   const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     setInput(e.target.value);
   }, []);
 
-  const handleSubmit = useCallback(async (e: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isLoading) return;
 
-    // Add user message
-    const userMessage: Message = {
-      role: "user",
-      content: input,
-    };
-
+    const userMessage: Message = { role: "user", content: input };
     setMessages(prev => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+
+    let receivedNewCode = false;
+    let accumulated = '';
+    let assistantMessage: Message = { role: 'assistant', content: '' };
     
+    // Add placeholder for assistant message
+    setMessages(prev => [...prev, assistantMessage]);
+
     try {
-      // Send request to API
-      const response = await fetch('/api/chat', {
-        method: 'POST',
+      const response = await fetch("/api/chat", {
+        method: "POST",
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          messages: [...messages, userMessage].map(msg => ({
-            role: msg.role,
-            content: msg.content,
-          })),
-          systemPrompt: 'You are an expert React developer assistant. Help users create beautiful and functional React components. When asked to create a component, provide working code wrapped in ```jsx code blocks that can be easily copied. Use modern React practices and Tailwind CSS for styling.',
+          messages: [...messages, userMessage].map(({ role, content }) => ({ role, content })),
+          systemPrompt: 'You are an expert React developer assistant. Help users create beautiful and functional React components. When asked to create a component, provide working code wrapped in ```jsx[COMPONENT]...``` blocks using Tailwind CSS.',
           model: 'deepseek-v3-250324',
           provider: 'ark',
         }),
       });
-      
+
       if (!response.body) {
-        throw new Error('Response body is empty');
+        throw new Error("No response body");
       }
       
       // Process streaming response
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
-      
-      let accumulatedResponse = '';
-      let assistantMessage: Message = { role: 'assistant', content: '' };
-      
-      // Add placeholder for assistant message
-      setMessages(prev => [...prev, assistantMessage]);
       
       let done = false;
       while (!done) {
@@ -95,16 +89,22 @@ export default function HomePage() {
                 const text = parsed.text || '';
                 
                 // Update accumulated response
-                accumulatedResponse += text;
+                accumulated += text;
                 
                 // Update the assistant message with accumulated response
-                assistantMessage = { ...assistantMessage, content: accumulatedResponse };
+                assistantMessage = { ...assistantMessage, content: accumulated };
                 setMessages(prev => [...prev.slice(0, -1), assistantMessage]);
                 
                 // Check if we've received code and update the editor
-                const extractedCode = extractCodeFromResponse(accumulatedResponse);
+                const extractedCode = extractCodeFromResponse(accumulated);
                 if (extractedCode) {
+                  receivedNewCode = true;
                   setCode(extractedCode);
+                  
+                  const metadata = extractComponentMetadata(accumulated);
+                  if (metadata) {
+                    console.log("Component metadata:", metadata);
+                  }
                 }
               } catch {
                 // Ignore parsing errors
@@ -113,16 +113,27 @@ export default function HomePage() {
           }
         }
       }
-    } catch (error) {
-      console.error('Error:', error);
+
+      if (!receivedNewCode) {
+        console.log("No code block detected - clearing canvas");
+        setCode("");
+      }
+    } catch (err) {
+      console.error("Submission error:", err);
       setMessages(prev => [
         ...prev,
-        { role: 'assistant', content: 'Sorry, there was an error generating the component. Please try again.' },
+        { role: "assistant", content: "Sorry, something went wrong." },
       ]);
     } finally {
       setIsLoading(false);
     }
-  }, [input, messages, isLoading]);
+  }, [input, messages, isLoading, extractCodeFromResponse, extractComponentMetadata]);
+
+  const handleCodeChange = useCallback((val: string) => setCode(val), []);
+
+  const memoizedCanvas = useMemo(() => (
+    <CanvasSidebar code={code} onChange={handleCodeChange} />
+  ), [code, handleCodeChange]);
 
   return (
     <div className="flex flex-col h-dvh">
@@ -139,10 +150,7 @@ export default function HomePage() {
             isLoading={isLoading}
           />
         </div>
-        <CanvasSidebar 
-          code={code} 
-          onChange={setCode} 
-        />
+        {memoizedCanvas}
       </div>
     </div>
   );

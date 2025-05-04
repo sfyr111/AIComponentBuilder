@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, memo } from "react";
 import { Editor, OnMount, BeforeMount, Monaco } from "@monaco-editor/react";
 import type { editor } from "monaco-editor";
 
@@ -7,17 +7,35 @@ interface CodeEditorProps {
   onChange: (value: string) => void;
 }
 
-export function CodeEditor({ code, onChange }: CodeEditorProps) {
+// Memoize CodeEditor component to prevent unnecessary re-renders
+export const CodeEditor = memo(function CodeEditorComponent({ code, onChange }: CodeEditorProps) {
   const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
   const [isEditorReady, setIsEditorReady] = useState(false);
+  const lastCodeRef = useRef<string | null>(null);
   
   const handleEditorDidMount: OnMount = (editor) => {
     editorRef.current = editor;
     setIsEditorReady(true);
+    
+    // Set initial content when editor is ready
+    if (code && editor.getValue() !== code) {
+      const model = editor.getModel();
+      if (model) {
+        model.setValue(code);
+        lastCodeRef.current = code;
+      }
+    }
   };
   
   // use pushEditOperations to update content, keep edit history
   useEffect(() => {
+    // Only skip if we already processed this exact code
+    if (lastCodeRef.current === code) {
+      return;
+    }
+    
+    lastCodeRef.current = code;
+    
     if (isEditorReady && editorRef.current) {
       const model = editorRef.current.getModel();
       if (model && model.getValue() !== code) {
@@ -77,4 +95,4 @@ export function CodeEditor({ code, onChange }: CodeEditorProps) {
       />
     </div>
   );
-}
+});

@@ -5,6 +5,7 @@ import { SandboxIframe } from "./sandbox-iframe";
 import { ErrorBoundary } from "react-error-boundary";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { hashString } from "@/lib/utils";
 
 interface CodePreviewProps {
   jsxCode: string;
@@ -43,6 +44,8 @@ export function CodePreview({ jsxCode }: CodePreviewProps) {
     console.error("Preview error:", err);
   };
 
+  const key = jsxCode ? hashString(jsxCode) : 'empty';
+
   return (
     <ErrorBoundary
       FallbackComponent={ErrorFallback}
@@ -50,6 +53,7 @@ export function CodePreview({ jsxCode }: CodePreviewProps) {
     >
       <div className="w-full h-full rounded-md overflow-hidden">
         <SandboxIframe 
+          key={key}
           jsxCode={jsxCode} 
           className="w-full h-full"
           onError={handleError}

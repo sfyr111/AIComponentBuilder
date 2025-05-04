@@ -1,102 +1,57 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Button } from "@/components/ui/button";
+import React, { useEffect, useRef, useState } from "react";
+import { CodeEditor } from "./code-editor";
+import { CodePreview } from "./code-preview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ChevronLeft, ChevronRight, Code, Eye } from "lucide-react";
-import { CodeEditor } from "@/components/canvas/code-editor";
-import { CodePreview } from "@/components/canvas/code-preview";
 import { useIsClient } from "@/hooks/use-client";
 
 interface CanvasSidebarProps {
   code: string;
-  onChange: (code: string) => void;
+  onChange: (value: string) => void;
 }
 
 export function CanvasSidebar({ code, onChange }: CanvasSidebarProps) {
-  const [open, setOpen] = useState(true);
+  const isClient = useIsClient();
+  const [open, setOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("code");
   const prevActiveTabRef = useRef(activeTab);
-  const isClient = useIsClient();
-  
-  // Listen for tab changes, clean up resources when switching from Preview to Code
+
+  useEffect(() => {
+    const hasCode = !!code.trim();
+    setOpen(hasCode);
+  }, [code]);
+
   useEffect(() => {
     if (prevActiveTabRef.current === "preview" && activeTab === "code") {
-      // When switching from preview to code, trigger a cleanup event
-      const event = new CustomEvent('cleanup-preview');
-      window.dispatchEvent(event);
+      window.dispatchEvent(new CustomEvent("cleanup-preview"));
     }
     prevActiveTabRef.current = activeTab;
   }, [activeTab]);
 
+  if (!isClient || !open) return null;
+
   return (
-    <Collapsible
-      open={open}
-      onOpenChange={setOpen}
-      className="border-l transition-all duration-300 shrink-0 h-full"
-      style={{ width: open ? "50%" : "40px" }}
-    >
-      <div className="flex h-full">
-        <CollapsibleTrigger asChild>
-          <div className="flex items-center h-full border-r">
-            <Button variant="ghost" size="icon" className="h-full rounded-none w-10">
-              {isClient ? (open ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />) : null}
-            </Button>
-          </div>
-        </CollapsibleTrigger>
+    <div className="w-[min(50vw,640px)] border-l h-full flex flex-col">
+      <Tabs
+        value={activeTab}
+        onValueChange={setActiveTab}
+        className="flex flex-col h-full"
+      >
+        <div className="p-3 border-b flex items-center">
+          <TabsList>
+            <TabsTrigger value="code">Code</TabsTrigger>
+            <TabsTrigger value="preview">Preview</TabsTrigger>
+          </TabsList>
+        </div>
 
-        <CollapsibleContent
-          className="flex-1 h-full data-[state=open]:animate-none"
-          forceMount
-          style={{ 
-            visibility: open ? "visible" : "hidden", 
-            width: open ? "calc(100% - 40px)" : "0",
-            height: "100%",
-            display: "flex",
-            flexDirection: "column"
-          }}
-        >
-          <Tabs defaultValue="code" className="flex flex-col h-full" onValueChange={setActiveTab} style={{ height: "100%" }}>
-            <div className="p-3 border-b flex items-center">
-              <TabsList>
-                <TabsTrigger value="code">
-                  {isClient ? <Code className="h-4 w-4 mr-2" /> : <span className="w-4 h-4 mr-2"></span>}
-                  Code
-                </TabsTrigger>
-                <TabsTrigger value="preview">
-                  {isClient ? <Eye className="h-4 w-4 mr-2" /> : <span className="w-4 h-4 mr-2"></span>}
-                  Preview
-                </TabsTrigger>
-              </TabsList>
-            </div>
-
-            <TabsContent 
-              value="code" 
-              className="flex-1 p-0 m-0 flex flex-col" 
-              style={{ height: "calc(100% - 48px)" }}
-            >
-              <div className="flex-1 flex flex-col" style={{ height: "100%" }}>
-                <div className="flex-1 p-4" style={{ height: "100%" }}>
-                  <CodeEditor code={code} onChange={onChange} />
-                </div>
-              </div>
-            </TabsContent>
-
-            <TabsContent 
-              value="preview" 
-              className="flex-1 p-0 m-0" 
-              style={{ height: "calc(100% - 48px)" }}
-            >
-              <div className="p-4 h-full">
-                <div className="h-full rounded-md p-4 overflow-auto bg-[#1e1e1e]">
-                  <CodePreview jsxCode={code} />
-                </div>
-              </div>
-            </TabsContent>
-          </Tabs>
-        </CollapsibleContent>
-      </div>
-    </Collapsible>
+        <TabsContent value="code" className="flex-1 overflow-hidden">
+          <CodeEditor code={code} onChange={onChange} />
+        </TabsContent>
+        <TabsContent value="preview" className="flex-1 overflow-hidden">
+          <CodePreview jsxCode={code} />
+        </TabsContent>
+      </Tabs>
+    </div>
   );
 }

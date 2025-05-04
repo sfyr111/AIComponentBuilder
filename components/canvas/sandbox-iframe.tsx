@@ -58,170 +58,127 @@ export function SandboxIframe({ jsxCode, className, onError }: SandboxIframeProp
   useEffect(() => {
     if (!debouncedCode || !iframeRef.current) return;
     
-    if (isInitializing) {
-      console.log("ESBuild initializing...");
-      return;
-    }
-    
-    if (hasError) {
-      console.error("ESBuild initialization failed");
-      onError?.(new Error("Code compiler initialization failed"));
-      return;
-    }
-
-    // Reset states
     setIsLoading(true);
     setResourceError(null);
     
-    // Message handler
+    if (isInitializing || hasError) {
+      console.warn("ESBuild not ready");
+      onError?.(new Error("Code compiler is not ready"));
+      return;
+    }
+
     const handleMessage = (event: MessageEvent) => {
-      if (event.data) {
-        if (event.data.type === 'error') {
-          onError?.(new Error(event.data.error));
-        } else if (event.data.type === 'resourceError') {
-          setResourceError(event.data.error);
-          onError?.(new Error(event.data.error));
-        } else if (event.data.type === 'loaded') {
-          setIsLoading(false);
-        }
+      if (!event.data) return;
+      const { type, error } = event.data;
+      if (type === "error" || type === "resourceError") {
+        onError?.(new Error(error));
+        if (type === "resourceError") setResourceError(error);
+      } else if (type === "loaded") {
+        console.log("Preview reported loaded");
+        setIsLoading(false);
       }
     };
 
-    window.addEventListener('message', handleMessage);
-    
+    const handleCleanup = () => {
+      if (iframeRef.current) {
+        iframeRef.current.srcdoc = "";
+        setHtmlContent("");
+      }
+    };
+
+    window.addEventListener("message", handleMessage);
+    window.addEventListener("cleanup-preview", handleCleanup);
+
+    let isMounted = true;
+
     const bundleAndRender = async () => {
       try {
-        // Use bundleAndTransform to process code
+        console.log("Bundling code:", debouncedCode.slice(0, 50) + "...");
         const iife = await bundleAndTransform(debouncedCode);
+        if (!isMounted) return;
         
-        // Create HTML template
+        console.log("Bundle complete, rendering iframe");
+        
         const html = `
 <!DOCTYPE html>
 <html>
   <head>
-    <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>React Sandbox</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Preview</title>
     <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
     <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4" crossorigin></script>
     <style>
-      body { 
-        margin: 0; 
-        padding: 16px; 
-        font-family: system-ui, sans-serif; 
-      }
-      
+      body { margin: 0; padding: 1rem; font-family: system-ui, sans-serif; }
       #sandbox-error {
         background-color: #fee2e2;
         border: 1px solid #fecaca;
         border-radius: 0.375rem;
         padding: 1rem;
-        margin: 1rem;
         color: #dc2626;
+        margin-top: 1rem;
       }
     </style>
   </head>
   <body>
     <div id="root"></div>
     <script>
-      // Mark resources as loaded
       window.parent.postMessage({ type: 'loaded' }, '*');
-      
-      // Resource error handling
-      window.addEventListener('error', function(e) {
-        if (e.target && (e.target.tagName === 'SCRIPT' || e.target.tagName === 'LINK')) {
-          const msg = 'Resource loading error: ' + (e.target.src || e.target.href);
+      window.addEventListener('error', (e) => {
+        if (['SCRIPT', 'LINK'].includes(e.target?.tagName)) {
+          const msg = 'Resource load error: ' + (e.target.src || e.target.href);
           window.parent.postMessage({ type: 'resourceError', error: msg }, '*');
           e.preventDefault();
         }
       }, true);
-      
-      // Global error handling
-      window.onerror = function(message, source, lineno, colno, error) {
-        window.parent.postMessage({ 
-          type: 'error', 
-          error: message,
-          details: error ? error.stack : null
-        }, '*');
+      window.onerror = (msg, src, line, col, err) => {
+        window.parent.postMessage({ type: 'error', error: msg }, '*');
         return true;
       };
-      
       try {
-        // Execute bundled code
         ${iife}
-        
-        // Check for valid exports
-        if (!window.Sandbox || typeof window.Sandbox !== 'object') {
-          throw new Error('No valid export object found');
-        }
-        
-        // Find component
-        let Component;
-        
-        // Try to get default export
-        if (typeof window.Sandbox.default === 'function') {
-          Component = window.Sandbox.default;
-          console.log('Using default export as component');
-        } else {
-          // Try to find first function in exports
-          for (const key in window.Sandbox) {
-            if (typeof window.Sandbox[key] === 'function') {
-              Component = window.Sandbox[key];
-              console.log('Using export ' + key + ' as component');
-              break;
-            }
-          }
-        }
-        
-        if (!Component) {
-          throw new Error('Cannot find valid React component');
-        }
-        
-        // Use empty props
-        const componentProps = {};
-        
-        // Render component
-        console.log('Mounting component');
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(React.createElement(Component, componentProps));
-        
-        console.log('Component mounted successfully');
-      } catch (error) {
-        console.error("Rendering error:", error);
-        
-        const rootEl = document.getElementById('root');
-        rootEl.innerHTML = \`
-          <div id="sandbox-error">
-            <p style="font-weight: 500;">Rendering Error</p>
-            <pre style="margin-top: 0.5rem; font-size: 0.875rem; overflow: auto; white-space: pre-wrap;">
-              \${error.message}
-            </pre>
-          </div>
-        \`;
-        window.parent.postMessage({ type: 'error', error: error.message }, '*');
+        const Component = window.Sandbox?.default || Object.values(window.Sandbox).find(f => typeof f === 'function');
+        if (!Component) throw new Error('No valid export found');
+        ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(Component));
+      } catch (err) {
+        const root = document.getElementById('root');
+        root.innerHTML = '<div id="sandbox-error"><strong>Render error:</strong><pre>' + err.message + '</pre></div>';
+        window.parent.postMessage({ type: 'error', error: err.message }, '*');
       }
     </script>
   </body>
 </html>`;
         
-        // Update iframe content
         setHtmlContent(html);
+        if (iframeRef.current) {
+          console.log("Updating iframe srcdoc");
+          iframeRef.current.srcdoc = html;
+          
+          // Fallback loading timeout (enable if needed for long previews)
+          // setTimeout(() => {
+          //   if (isMounted) {
+          //     console.log("Timeout - force ending loading state");
+          //     setIsLoading(false);
+          //   }
+          // }, 5000);
+        }
       } catch (err) {
-        console.error("Code compilation error:", err);
-        onError?.(err instanceof Error ? err : new Error(String(err)));
+        console.error("Bundle error:", err);
+        if (isMounted) {
+          setIsLoading(false);
+          onError?.(err instanceof Error ? err : new Error(String(err)));
+        }
       }
     };
 
-    // Execute bundle and render
     bundleAndRender();
 
-    // Cleanup function
     return () => {
-      window.removeEventListener('message', handleMessage);
-      if (iframeRef.current) {
-        iframeRef.current.srcdoc = '';
-      }
+      isMounted = false;
+      window.removeEventListener("message", handleMessage);
+      window.removeEventListener("cleanup-preview", handleCleanup);
+      if (iframeRef.current) iframeRef.current.srcdoc = "";
     };
   }, [debouncedCode, isInitializing, hasError, onError]);
 
@@ -233,20 +190,22 @@ export function SandboxIframe({ jsxCode, className, onError }: SandboxIframeProp
             <div className="text-sm text-muted-foreground">Loading preview...</div>
           </div>
         )}
-        
         {resourceError && (
           <div className="absolute top-0 left-0 right-0 bg-amber-50 border-b border-amber-200 p-2 text-amber-800 text-sm flex items-center gap-2 z-20">
             <AlertTriangle className="h-4 w-4" />
-            <span>Resource loading error: {resourceError}</span>
+            <span>{resourceError}</span>
           </div>
         )}
-        
         <iframe
           ref={iframeRef}
           className={cn("w-full h-full border-0", className)}
           sandbox="allow-scripts"
           srcDoc={htmlContent}
-          title="React Preview"
+          title="Component Preview"
+          onLoad={() => {
+            console.log("iframe onLoad triggered");
+            setIsLoading(false);
+          }}
         />
       </div>
     </ErrorBoundary>
