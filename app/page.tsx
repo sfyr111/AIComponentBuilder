@@ -168,7 +168,7 @@ export default function HomePage() {
         systemPrompt += '\n\nBased on the following component analysis, implement a React component that matches the description:\n\n' + analysisContent;
       }
       
-      systemPrompt += '\n\nWhen creating or updating a component, provide working code wrapped in \n```jsx[COMPONENT]...``` blocks.';
+      systemPrompt += '\n\nIMPORTANT: When creating or updating a component, you MUST provide working code wrapped in a code block with the following format:\n\n```jsx[COMPONENT]\n// your component code here\n```\n\nEnsure there is ALWAYS a line break before and after the code block markers to prevent formatting errors.';
 
       const response = await fetch("/api/chat", {
         method: "POST",
