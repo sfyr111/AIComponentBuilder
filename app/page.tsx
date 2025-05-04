@@ -5,7 +5,7 @@ import { ChatHeader } from "@/components/chat/chat-header";
 import { ChatMessages, Message } from "@/components/chat/chat-messages";
 import { ChatInput } from "@/components/chat/chat-input";
 import { CanvasSidebar } from "@/components/canvas/canvas-sidebar";
-import { uploadImage } from "@/lib/image-upload";
+import { uploadImageToTOS } from "@/lib/tos-upload";
 
 // Default example code with function call examples
 const DEFAULT_COMPONENT = ``;
@@ -91,7 +91,7 @@ export default function HomePage() {
         const localImageUrl = URL.createObjectURL(imageFile);
         setSelectedImage(localImageUrl);
         
-        const uploadedUrl = await uploadImage(imageFile);
+        const uploadedUrl = await uploadImageToTOS(imageFile);
         if (uploadedUrl) {
           setSelectedImage(uploadedUrl);
         } else {

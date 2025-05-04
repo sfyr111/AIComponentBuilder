@@ -3,8 +3,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ImagePreview } from "@/components/ui/image-preview";
 import { cn } from "@/lib/utils";
-import { Upload, Loader2, SendHorizontal, FilePlus2 } from "lucide-react";
-import { uploadImage } from "@/lib/image-upload";
+import { Loader2, SendHorizontal, FilePlus2 } from "lucide-react";
+import { uploadImageToTOS } from "@/lib/tos-upload";
+import { TOSUploadButton } from "@/components/ui/vercel-upload-button";
 
 interface ChatInputProps {
   input: string;
@@ -45,7 +46,7 @@ export function ChatInput({
     setIsUploading(true);
     setUploadStatus("Uploading...");
 
-    const uploadedUrl = await uploadImage(file);
+    const uploadedUrl = await uploadImageToTOS(file);
 
     if (uploadedUrl) {
       setUploadStatus("Upload successful!");
@@ -171,17 +172,27 @@ export function ChatInput({
           />
           
           <div className="flex items-center gap-2">
-            <Button 
-              type="button" 
-              variant="outline"
-              onClick={() => fileInputRef.current?.click()}
+            <TOSUploadButton
               disabled={isLoading || isUploading}
-              title="Upload image"
               size="icon"
+              variant="outline"
               className="h-10 w-10 transition-colors"
-            >
-              {isUploading ? <Loader2 className="h-5 w-5 animate-spin" /> : <Upload className="h-5 w-5" />}
-            </Button>
+              onUploadStart={() => {
+                setIsUploading(true);
+                setUploadStatus("Uploading...");
+              }}
+              onUploadComplete={(url) => {
+                setIsUploading(false);
+                setUploadStatus("Upload successful!");
+                if (onImageChange) {
+                  onImageChange(url);
+                }
+              }}
+              onUploadError={(error) => {
+                setIsUploading(false);
+                setUploadStatus(`Upload failed: ${error}`);
+              }}
+            />
             
             <Button
               type="button"
