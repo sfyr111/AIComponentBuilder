@@ -9,6 +9,7 @@ import { hashString } from "@/lib/utils";
 
 interface CodePreviewProps {
   jsxCode: string;
+  onError?: (error: Error) => void;
 }
 
 function ErrorFallback({ error, resetErrorBoundary }: { 
@@ -39,9 +40,10 @@ function ErrorFallback({ error, resetErrorBoundary }: {
   );
 }
 
-export function CodePreview({ jsxCode }: CodePreviewProps) {
+export function CodePreview({ jsxCode, onError }: CodePreviewProps) {
   const handleError = (err: Error) => {
     console.error("Preview error:", err);
+    onError?.(err);
   };
 
   const key = jsxCode ? hashString(jsxCode) : 'empty';
@@ -50,6 +52,7 @@ export function CodePreview({ jsxCode }: CodePreviewProps) {
     <ErrorBoundary
       FallbackComponent={ErrorFallback}
       resetKeys={[jsxCode]}
+      onError={handleError}
     >
       <div className="w-full h-full rounded-md overflow-hidden">
         <SandboxIframe 
