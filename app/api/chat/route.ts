@@ -18,7 +18,7 @@ export async function POST(req: Request) {
 
     // Initialize OpenAI client (for ARK API - DeepSeek models)
     const arkClient = new OpenAI({
-      apiKey: process.env.ARK_API_KEY || '',
+      apiKey: process.env.NEXT_PUBLIC_ARK_API_KEY || '',
       baseURL: 'https://ark.cn-beijing.volces.com/api/v3',
     });
 
