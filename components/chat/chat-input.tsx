@@ -24,7 +24,7 @@ export function ChatInput({ input, handleInputChange, handleSubmit, isLoading }:
           disabled={isLoading}
         />
         <Button type="submit" disabled={isLoading}>
-          {isLoading ? "Generating..." : "Generate Component"}
+          {isLoading ? "Generating..." : "Generate"}
         </Button>
       </form>
     </div>

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef } from "react";
 import { CodeEditor } from "./code-editor";
 import { CodePreview } from "./code-preview";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,18 +9,20 @@ import { useIsClient } from "@/hooks/use-client";
 interface CanvasSidebarProps {
   code: string;
   onChange: (value: string) => void;
+  isOpen?: boolean;
+  onOpenChange?: (isOpen: boolean) => void;
 }
 
-export function CanvasSidebar({ code, onChange }: CanvasSidebarProps) {
+export function CanvasSidebar({ 
+  code, 
+  onChange, 
+  isOpen: propIsOpen,
+}: CanvasSidebarProps) {
   const isClient = useIsClient();
-  const [open, setOpen] = useState(false);
-  const [activeTab, setActiveTab] = useState("code");
+  const [activeTab, setActiveTab] = React.useState("code");
   const prevActiveTabRef = useRef(activeTab);
-
-  useEffect(() => {
-    const hasCode = !!code.trim();
-    setOpen(hasCode);
-  }, [code]);
+  
+  const isOpen = propIsOpen !== undefined ? propIsOpen : false;
 
   useEffect(() => {
     if (prevActiveTabRef.current === "preview" && activeTab === "code") {
@@ -29,10 +31,10 @@ export function CanvasSidebar({ code, onChange }: CanvasSidebarProps) {
     prevActiveTabRef.current = activeTab;
   }, [activeTab]);
 
-  if (!isClient || !open) return null;
+  if (!isClient || !isOpen) return null;
 
   return (
-    <div className="w-[min(50vw,640px)] border-l h-full flex flex-col">
+    <div className="w-1/2 md:w-3/5 xl:w-2/3 2xl:w-3/4 border-l h-full flex flex-col">
       <Tabs
         value={activeTab}
         onValueChange={setActiveTab}

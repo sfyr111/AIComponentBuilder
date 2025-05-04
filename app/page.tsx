@@ -6,11 +6,15 @@ import { ChatMessages, Message } from "@/components/chat/chat-messages";
 import { ChatInput } from "@/components/chat/chat-input";
 import { CanvasSidebar } from "@/components/canvas/canvas-sidebar";
 
+// Default example code with function call examples
+const DEFAULT_TIME_COMPONENT = ``;
+
 export default function HomePage() {
   const [input, setInput] = useState("");
   const [messages, setMessages] = useState<Message[]>([]);
-  const [code, setCode] = useState("");
+  const [code, setCode] = useState(DEFAULT_TIME_COMPONENT);
   const [isLoading, setIsLoading] = useState(false);
+  const [isCanvasOpen, setIsCanvasOpen] = useState(!!DEFAULT_TIME_COMPONENT.trim());
 
   const extractCodeFromResponse = useCallback((text: string): string | null => {
     const match = text.match(/```(?:jsx|tsx|javascript|js|react)?(?:\[COMPONENT.*?\])\n([\s\S]+?)```/);
@@ -100,6 +104,7 @@ export default function HomePage() {
                 if (extractedCode) {
                   receivedNewCode = true;
                   setCode(extractedCode);
+                  setIsCanvasOpen(true);
                   
                   const metadata = extractComponentMetadata(accumulated);
                   if (metadata) {
@@ -131,17 +136,30 @@ export default function HomePage() {
 
   const handleCodeChange = useCallback((val: string) => setCode(val), []);
 
+  const handleCanvasOpenChange = useCallback((isOpen: boolean) => {
+    setIsCanvasOpen(isOpen);
+  }, []);
+
   const memoizedCanvas = useMemo(() => (
-    <CanvasSidebar code={code} onChange={handleCodeChange} />
-  ), [code, handleCodeChange]);
+    <CanvasSidebar 
+      code={code} 
+      onChange={handleCodeChange} 
+      isOpen={isCanvasOpen}
+      onOpenChange={handleCanvasOpenChange}
+    />
+  ), [code, handleCodeChange, isCanvasOpen, handleCanvasOpenChange]);
 
   return (
     <div className="flex flex-col h-dvh">
       <div className="flex justify-between items-center px-4 py-2 border-b">
-        <ChatHeader title="AI React Component Generator" />
+        <ChatHeader 
+          title="AI React Component Generator"
+          isCanvasOpen={isCanvasOpen}
+          onCanvasOpenChange={handleCanvasOpenChange}
+        />
       </div>
       <div className="flex flex-1 overflow-hidden">
-        <div className="flex-1 flex flex-col overflow-hidden">
+        <div className={`flex-1 min-w-[25%] flex flex-col overflow-hidden ${isCanvasOpen ? 'max-w-[50%] md:max-w-[40%] xl:max-w-[33.333%] 2xl:max-w-[25%]' : ''}`}>
           <ChatMessages messages={messages} isLoading={isLoading} />
           <ChatInput 
             input={input} 

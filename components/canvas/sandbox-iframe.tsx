@@ -54,6 +54,7 @@ export function SandboxIframe({ jsxCode, className, onError }: SandboxIframeProp
   const [htmlContent, setHtmlContent] = useState("");
   const { isInitializing, hasError } = useEsbuild();
   const debouncedCode = useDebounce(jsxCode, 500);
+  const esbuildReadyRef = useRef(false);
 
   useEffect(() => {
     if (!debouncedCode || !iframeRef.current) return;
@@ -62,14 +63,19 @@ export function SandboxIframe({ jsxCode, className, onError }: SandboxIframeProp
     setResourceError(null);
     
     if (isInitializing || hasError) {
-      console.warn("ESBuild not ready");
-      onError?.(new Error("Code compiler is not ready"));
+      console.log("ESBuild is initializing, waiting...");
       return;
+    }
+
+    if (!esbuildReadyRef.current) {
+      esbuildReadyRef.current = true;
+      console.log("ESBuild initialization complete");
     }
 
     const handleMessage = (event: MessageEvent) => {
       if (!event.data) return;
       const { type, error } = event.data;
+      
       if (type === "error" || type === "resourceError") {
         onError?.(new Error(error));
         if (type === "resourceError") setResourceError(error);
@@ -93,7 +99,7 @@ export function SandboxIframe({ jsxCode, className, onError }: SandboxIframeProp
 
     const bundleAndRender = async () => {
       try {
-        console.log("Bundling code:", debouncedCode.slice(0, 50) + "...");
+        console.log("ESBuild ready, processing code:", debouncedCode.slice(0, 50) + "...");
         const iife = await bundleAndTransform(debouncedCode);
         if (!isMounted) return;
         
@@ -180,7 +186,7 @@ export function SandboxIframe({ jsxCode, className, onError }: SandboxIframeProp
       window.removeEventListener("cleanup-preview", handleCleanup);
       if (iframeRef.current) iframeRef.current.srcdoc = "";
     };
-  }, [debouncedCode, isInitializing, hasError, onError]);
+  }, [debouncedCode, isInitializing, hasError]);
 
   return (
     <ErrorBoundary onError={onError}>
