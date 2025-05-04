@@ -6,6 +6,7 @@ import { ChatMessages, Message } from "@/components/chat/chat-messages";
 import { ChatInput } from "@/components/chat/chat-input";
 import { CanvasSidebar } from "@/components/canvas/canvas-sidebar";
 import { uploadImageToTOS } from "@/lib/tos-upload";
+import { useImageAnalysis } from "@/hooks/useImageAnalysis";
 
 // Default example code with function call examples
 const DEFAULT_COMPONENT = ``;
@@ -38,6 +39,7 @@ export default function HomePage() {
   const [isLoading, setIsLoading] = useState(false);
   const [isCanvasOpen, setIsCanvasOpen] = useState(!!DEFAULT_COMPONENT.trim());
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
+  const { analyzeImage, status: imageAnalysisStatus } = useImageAnalysis();
 
   const extractCodeFromResponse = useCallback((text: string): string | null => {
     const match = text.match(/```(?:jsx|tsx|javascript|js|react)?(?:\[COMPONENT.*?\])\n([\s\S]+?)```/);
@@ -123,32 +125,30 @@ export default function HomePage() {
 
     let analysisContent = '';
     
-    // Step 1: If an image is present, call image analysis API first
     if (selectedImage) {
       try {
-        const analysisResponse = await fetch("/api/image-analyze", {
-          method: "POST",
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            imageUrl: selectedImage,
-            prompt: IMAGE_PROMPT
-          }),
-        });
+        const loadingMessage: Message = { 
+          role: "assistant", 
+          content: "Analyzing image, this may take a moment..." 
+        };
+        setMessages(prev => [...prev, loadingMessage]);
         
-        if (!analysisResponse.ok) {
-          throw new Error(`Image analysis failed: ${analysisResponse.status}`);
+        analysisContent = await analyzeImage(selectedImage, IMAGE_PROMPT) || '';
+        
+        if (analysisContent) {
+          setMessages(prev => prev.filter(m => m !== loadingMessage));
+        } else {
+          throw new Error('Image analysis returned no content');
         }
-        
-        const analysisData = await analysisResponse.json();
-        analysisContent = analysisData.description || '';
       } catch (error) {
-        console.error("Image analysis error:", error);
-        setMessages(prev => [
-          ...prev,
-          { role: "assistant", content: "Sorry, image analysis failed. Please try again." },
-        ]);
+        console.error("Image analysis error:", error, imageAnalysisStatus);
+        setMessages(prev => {
+          const withoutLoading = prev.filter(m => m.content !== "Analyzing image, this may take a moment...");
+          return [
+            ...withoutLoading,
+            { role: "assistant", content: "Sorry, image analysis failed. Please try again later." }
+          ];
+        });
         setIsLoading(false);
         return;
       }
@@ -168,7 +168,7 @@ export default function HomePage() {
         systemPrompt += '\n\nBased on the following component analysis, implement a React component that matches the description:\n\n' + analysisContent;
       }
       
-      systemPrompt += '\n\nWhen creating a component, provide working code wrapped in ```jsx[COMPONENT]...``` blocks.';
+      systemPrompt += '\n\nWhen creating or updating a component, provide working code wrapped in \n```jsx[COMPONENT]...``` blocks.';
 
       const response = await fetch("/api/chat", {
         method: "POST",
@@ -251,7 +251,7 @@ export default function HomePage() {
       setIsLoading(false);
       setSelectedImage(null);
     }
-  }, [input, messages, isLoading, selectedImage, extractCodeFromResponse, extractComponentMetadata]);
+  }, [input, messages, isLoading, selectedImage, extractCodeFromResponse, extractComponentMetadata, analyzeImage]);
 
   const handleCodeChange = useCallback((val: string) => setCode(val), []);
 
@@ -265,7 +265,6 @@ export default function HomePage() {
     setCode(DEFAULT_COMPONENT);
     setInput("");
     setIsCanvasOpen(false);
-    // No need to manually clear uploadStatus here, handled in ChatInput effect
   }, [DEFAULT_COMPONENT]);
 
   const memoizedCanvas = useMemo(() => (

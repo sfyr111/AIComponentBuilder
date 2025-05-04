@@ -1,3 +1,17 @@
+/**
+ * This is the preferred server-side implementation for image analysis using ARK API.
+ * However, due to Vercel's 25-second timeout limit for serverless functions,
+ * and the fact that image analysis typically takes longer than this threshold,
+ * this implementation is currently not in use.
+ * 
+ * Instead, we're using a direct client-side implementation (see lib/ark-api.ts)
+ * that bypasses the timeout limitation, though this approach exposes the API key
+ * in the frontend code.
+ * 
+ * TODO: Implement a more secure solution that doesn't expose the API key
+ * while still handling long-running image analysis requests.
+ */
+
 export const runtime = 'edge';
 
 export async function POST(req: Request) {
@@ -72,4 +86,4 @@ export async function POST(req: Request) {
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     );
   }
-} 
+}
